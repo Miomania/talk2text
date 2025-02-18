@@ -5,6 +5,9 @@ import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
 import os
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lsa import LsaSummarizer
 
 # Настройка логирования:
 logging.basicConfig(
@@ -13,6 +16,15 @@ logging.basicConfig(
 )
 
 TOKEN = '7588606694:AAF-5-IEioDYBs2wPFjQ133ArY8YYxKmrac'
+
+# Функция резюмирования текста
+def summarize_text(text, sentence_count=2):
+    parser = PlaintextParser.from_string(text, Tokenizer("russian"))
+    summarizer = LsaSummarizer()
+    summarizer.stop_words = ["вы", "в", "на", "и"]
+
+    summary = summarizer(parser.document, sentence_count)
+    return ' '.join(str(sentence) for sentence in summary)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Привет! Я ваш бот.')
@@ -63,11 +75,12 @@ async def voice_to_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
                 os.remove(chunk_wav_file.name)
         
-        # Обновляем сообщение с распознанным текстом
+        # Добавление резюмирования текста
         if not recognized_text:
             await processing_message.edit_text("Не удалось распознать текст в аудио.")
         else:
-            await processing_message.edit_text(f"Распознанный текст: {recognized_text}")
+            summary = summarize_text(recognized_text)
+            await processing_message.edit_text(f"Распознанный текст: {recognized_text}\nКраткое резюме: {summary}")
         
         os.remove(voice_file.name)
         os.remove(wav_path)
